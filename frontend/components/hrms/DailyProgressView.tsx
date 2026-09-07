@@ -138,16 +138,17 @@ export function DailyProgressView({ defaultDepartment }: DailyProgressViewProps)
               };
               
               const isGraphicPost = entry.postReel === 'Post';
+              const isStory = entry.postReel === 'Story';
               
               const scriptAssignee = entry.assignedScriptwriterId || project.assignedScriptwriterId || client.assignedScriptwriterId;
-              addIfMatches('Script', entry.scriptDate, scriptAssignee, !!entry.scriptLink || isGraphicPost);
+              addIfMatches('Script', entry.scriptDate, scriptAssignee, !!entry.scriptLink || isGraphicPost || isStory);
               
               const shootDate = entry.shootDate || entry.scriptDate;
               const shootLink = entry.shootLink || entry.shootingLink;
               const shootAssignee = entry.assignedShooterId || project.assignedShooterId || client.assignedShooterId;
-              addIfMatches('Shoot', shootDate, shootAssignee, !!shootLink || isGraphicPost);
+              addIfMatches('Shoot', shootDate, shootAssignee, !!shootLink || isGraphicPost || isStory);
               
-              if (entry.assignedBrandPersonIds && (!shootLink || shootLink === '-')) {
+              if (!isStory && entry.assignedBrandPersonIds && (!shootLink || shootLink === '-')) {
                 const bpIdsRaw = entry.assignedBrandPersonIds;
                 const bpIds = Array.isArray(bpIdsRaw) ? bpIdsRaw : (typeof bpIdsRaw === 'string' ? bpIdsRaw.split(',').map((id: string) => id.trim()).filter(Boolean) : []);
                 if (bpIds.includes(targetId)) {
@@ -168,9 +169,9 @@ export function DailyProgressView({ defaultDepartment }: DailyProgressViewProps)
               addIfMatches('Editing', entry.editingStart, editAssignee, isGraphicPost ? !!entry.finalPostLink : !!entry.finalReelLink);
               
               const captionAssignee = entry.assignedCaptionWriterId || project.assignedCaptionWriterId || client.assignedCaptionWriterId;
-              addIfMatches('Caption', entry.captionDate || entry.editingStart, captionAssignee, !!entry.caption);
+              addIfMatches('Caption', entry.captionDate || entry.editingStart, captionAssignee, !!entry.caption || isStory);
               
-              if (!isGraphicPost) {
+              if (!isGraphicPost && !isStory) {
                 const thumbAssignee = entry.assignedThumbnailDesignerId || project.assignedThumbnailDesignerId || client.assignedThumbnailDesignerId;
                 addIfMatches('Thumbnail', entry.thumbnailDate || entry.editingStart, thumbAssignee, !!entry.thumbnailLink);
               }
@@ -178,8 +179,10 @@ export function DailyProgressView({ defaultDepartment }: DailyProgressViewProps)
               const approverAssignee = entry.assignedApproverId || project.assignedApproverId || client.assignedApproverId;
               addIfMatches('Approval', entry.approval, approverAssignee, entry.isApproved === 'Yes');
               
-              const posterAssignee = entry.assignedPosterId || project.assignedPosterId || client.assignedPosterId;
-              addIfMatches('Posting', entry.postingDate, posterAssignee, !!entry.postingLinkOfIg);
+              if (!isStory) {
+                const posterAssignee = entry.assignedPosterId || project.assignedPosterId || client.assignedPosterId;
+                addIfMatches('Posting', entry.postingDate, posterAssignee, !!entry.postingLinkOfIg);
+              }
             });
           }
           

@@ -516,27 +516,28 @@ export default function CreativeClientsPage() {
         entries.forEach((entry: any) => {
           let pending = 0;
           const isPost = entry.postReel === 'Post';
+          const isStory = entry.postReel === 'Story';
           
           const isUserAssigned = (stageAssigneeId: string | null | undefined) => {
             if (!isEmployeeOrIntern || !user?.id) return true;
             return stageAssigneeId === user.id;
           };
 
-          if (!isPost && entry.scriptDate && !entry.scriptLink && isUserAssigned(entry.assignedScriptwriterId)) pending++;
-          if (!isPost && entry.shootDate && (!entry.shootLink || entry.shootLink === '-') && isUserAssigned(entry.assignedShooterId)) pending++;
+          if (!isPost && !isStory && entry.scriptDate && entry.scriptDate !== '-' && !entry.scriptLink && isUserAssigned(entry.assignedScriptwriterId)) pending++;
+          if (!isPost && !isStory && entry.shootDate && entry.shootDate !== '-' && (!entry.shootLink || entry.shootLink === '-') && isUserAssigned(entry.assignedShooterId)) pending++;
           
           const captionDate = entry.captionDate || entry.editingStart;
-          if (captionDate && !entry.caption && isUserAssigned(entry.assignedCaptionWriterId)) pending++;
+          if (!isStory && captionDate && captionDate !== '-' && !entry.caption && entry.caption !== '-' && isUserAssigned(entry.assignedCaptionWriterId)) pending++;
           
           const thumbnailDate = entry.thumbnailDate || entry.editingStart;
-          if (!isPost && thumbnailDate && !entry.thumbnailLink && isUserAssigned(entry.assignedThumbnailDesignerId)) pending++;
+          if (!isPost && !isStory && thumbnailDate && thumbnailDate !== '-' && !entry.thumbnailLink && entry.thumbnailLink !== '-' && isUserAssigned(entry.assignedThumbnailDesignerId)) pending++;
           
-          const isEditingPending = entry.editingStart && (isPost ? !entry.finalPostLink : !entry.finalReelLink);
+          const isEditingPending = entry.editingStart && entry.editingStart !== '-' && (isPost ? !entry.finalPostLink : !entry.finalReelLink);
           const editorId = isPost ? entry.assignedPostDesignerId : entry.assignedReelEditorId;
           if (isEditingPending && isUserAssigned(editorId)) pending++;
           
-          if (entry.approval && entry.isApproved !== 'Yes' && isUserAssigned(entry.assignedApproverId)) pending++;
-          if (entry.postingDate && !entry.postingLinkOfIg && isUserAssigned(entry.assignedPosterId)) pending++;
+          if (entry.approval && entry.approval !== '-' && entry.isApproved !== 'Yes' && isUserAssigned(entry.assignedApproverId)) pending++;
+          if (!isStory && entry.postingDate && entry.postingDate !== '-' && !entry.postingLinkOfIg && entry.postingLinkOfIg !== '-' && isUserAssigned(entry.assignedPosterId)) pending++;
 
           if (pending > 0) {
             const key = entry.projectId || entry.clientId;

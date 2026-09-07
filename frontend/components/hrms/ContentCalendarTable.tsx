@@ -342,7 +342,20 @@ export function ContentCalendarTable({ clientId, clientName, projectId, projectN
           projectId,
           monthYear,
           updatedBy: userName,
-          postReel: typeFilter !== "all" ? typeFilter : undefined
+          postReel: typeFilter !== "all" ? typeFilter : undefined,
+          ...(typeFilter === "Story" ? {
+            scriptLink: '-',
+            shootLink: '-',
+            thumbnailLink: '-',
+            caption: '-',
+            postingLinkOfIg: '-',
+            finalPostLink: '-',
+            scriptDate: '-',
+            shootDate: '-',
+            thumbnailDate: '-',
+            captionDate: '-',
+            assignedBrandPersonIds: []
+          } : {})
         }),
       });
       if (res.ok) {
@@ -367,7 +380,20 @@ export function ContentCalendarTable({ clientId, clientName, projectId, projectN
         monthYear,
         postingDate: dateString,
         updatedBy: userName,
-        postReel: typeFilter !== "all" ? typeFilter : undefined
+        postReel: typeFilter !== "all" ? typeFilter : undefined,
+        ...(typeFilter === "Story" ? {
+          scriptLink: '-',
+          shootLink: '-',
+          thumbnailLink: '-',
+          caption: '-',
+          postingLinkOfIg: '-',
+          finalPostLink: '-',
+          scriptDate: '-',
+          shootDate: '-',
+          thumbnailDate: '-',
+          captionDate: '-',
+          assignedBrandPersonIds: []
+        } : {})
       };
 
       try {
@@ -571,6 +597,23 @@ export function ContentCalendarTable({ clientId, clientName, projectId, projectN
     const userName = user?.name || (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : null) || "Unknown User";
 
     const payload = { ...editForm, updatedBy: userName };
+    if (payload.postReel === 'Post') {
+      payload.shootLink = payload.shootLink || '-';
+      payload.thumbnailLink = payload.thumbnailLink || '-';
+    } else if (payload.postReel === 'Story') {
+      payload.scriptLink = '-';
+      payload.shootLink = '-';
+      payload.thumbnailLink = '-';
+      payload.caption = '-';
+      payload.postingLinkOfIg = '-';
+      payload.finalPostLink = '-';
+      payload.scriptDate = '-';
+      payload.shootDate = '-';
+      payload.thumbnailDate = '-';
+      payload.captionDate = '-';
+      payload.assignedBrandPersonIds = [];
+    }
+
     if (payload.postingDate && typeof payload.postingDate === "string") {
       const parts = payload.postingDate.split("-");
       if (parts.length >= 2) {
@@ -899,6 +942,11 @@ export function ContentCalendarTable({ clientId, clientName, projectId, projectN
     const tableData = filteredEntries.map(entry => {
       return indicesToRender.map(idx => {
         const key = fieldKeys[idx];
+        const isPostDisabled = entry.postReel === 'Post' && ['shootDate', 'thumbnailDate', 'shootLink', 'thumbnailLink'].includes(key);
+        const isStoryDisabled = entry.postReel === 'Story' && ['scriptDate', 'scriptLink', 'shootDate', 'shootLink', 'thumbnailDate', 'thumbnailLink', 'captionDate', 'caption', 'postingLinkOfIg', 'finalPostLink', 'assignedBrandPersonIds'].includes(key);
+        if (isPostDisabled || isStoryDisabled) {
+          return "-";
+        }
         let val: any = entry[key] || "";
         if (dateFields.includes(key)) {
           val = formatDateToDDMMYY(val);
@@ -1060,8 +1108,15 @@ export function ContentCalendarTable({ clientId, clientName, projectId, projectN
             const approvalOffset = parseOffset(settings?.approvalOffset, 5);
 
             // ALWAYS recalculate if the user changes the posting date, overriding any existing calculated values
-            updates.scriptDate = subtractDays(d, scriptOffset);
-            updates.shootDate = subtractDays(d, shootOffset);
+            if (prev.postReel === 'Story' || updates.postReel === 'Story') {
+              updates.scriptDate = "-";
+              updates.shootDate = "-";
+              updates.thumbnailDate = "-";
+              updates.captionDate = "-";
+            } else {
+              updates.scriptDate = subtractDays(d, scriptOffset);
+              updates.shootDate = subtractDays(d, shootOffset);
+            }
             updates.editingStart = subtractDays(d, editingOffset);
             updates.approval = subtractDays(d, approvalOffset);
           }
@@ -1605,9 +1660,15 @@ export function ContentCalendarTable({ clientId, clientName, projectId, projectN
                     today.setHours(0, 0, 0, 0);
                     if (postDate <= today) {
                       const igLink = (entry.postingLinkOfIg || "").trim();
-                      const finalLink = (entry.finalPostLink || "").trim();
-                      if (!igLink && !finalLink) {
-                        isDue = true;
+                      const finalLink = (entry.finalPostLink || entry.finalReelLink || "").trim();
+                      if (entry.postReel === 'Story') {
+                        if (!finalLink || finalLink === '-') {
+                          isDue = true;
+                        }
+                      } else {
+                        if (!igLink && !finalLink) {
+                          isDue = true;
+                        }
                       }
                     }
                   }
@@ -1646,7 +1707,28 @@ export function ContentCalendarTable({ clientId, clientName, projectId, projectN
                             key === "postReel" ? (
                               <Select 
                                 value={editForm[key] || ""} 
-                                onValueChange={(val) => setEditForm({ ...editForm, [key]: val })}
+                                onValueChange={(val) => {
+                                  const updates: any = { postReel: val };
+                                  if (val === 'Post') {
+                                    updates.shootLink = '-';
+                                    updates.thumbnailLink = '-';
+                                    updates.shootDate = '-';
+                                    updates.thumbnailDate = '-';
+                                  } else if (val === 'Story') {
+                                    updates.scriptDate = '-';
+                                    updates.scriptLink = '-';
+                                    updates.shootDate = '-';
+                                    updates.shootLink = '-';
+                                    updates.thumbnailDate = '-';
+                                    updates.thumbnailLink = '-';
+                                    updates.captionDate = '-';
+                                    updates.caption = '-';
+                                    updates.postingLinkOfIg = '-';
+                                    updates.finalPostLink = '-';
+                                    updates.assignedBrandPersonIds = [];
+                                  }
+                                  setEditForm({ ...editForm, ...updates });
+                                }}
                               >
                                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
                                 <SelectContent>
@@ -1675,7 +1757,8 @@ export function ContentCalendarTable({ clientId, clientName, projectId, projectN
                                 onChange={(e) => handleDaySelect(e.target.value)}
                               />
                             ) : ["scriptDate", "shootDate", "editingStart", "captionDate", "thumbnailDate", "actualPostingDate", "approval"].includes(key) ? (
-                              ( (key === 'thumbnailDate' || key === 'shootDate') && editForm.postReel === 'Post') ? (
+                              ( (key === 'thumbnailDate' || key === 'shootDate') && editForm.postReel === 'Post') ||
+                              ( ['scriptDate', 'shootDate', 'thumbnailDate', 'captionDate'].includes(key) && editForm.postReel === 'Story') ? (
                                 <div className="text-slate-400 text-center w-full">-</div>
                               ) : (
                                 <Input 
@@ -1686,16 +1769,21 @@ export function ContentCalendarTable({ clientId, clientName, projectId, projectN
                                 />
                               )
                             ) : key === "assignedBrandPersonIds" ? (
-                              <div className="w-[200px]">
-                                <MultiSelect 
-                                  options={employees.map(e => ({ value: e.id, label: e.name || `${e.firstName} ${e.lastName}` }))}
-                                  selected={Array.isArray(editForm[key]) ? editForm[key] : (typeof editForm[key] === 'string' ? editForm[key].split(',').filter(Boolean) : [])}
-                                  onChange={(vals) => setEditForm({ ...editForm, [key]: vals })}
-                                  placeholder="Select Employees"
-                                />
-                              </div>
+                              editForm.postReel === 'Story' ? (
+                                <div className="text-slate-400 text-center w-full">-</div>
+                              ) : (
+                                <div className="w-[200px]">
+                                  <MultiSelect 
+                                    options={employees.map(e => ({ value: e.id, label: e.name || `${e.firstName} ${e.lastName}` }))}
+                                    selected={Array.isArray(editForm[key]) ? editForm[key] : (typeof editForm[key] === 'string' ? editForm[key].split(',').filter(Boolean) : [])}
+                                    onChange={(vals) => setEditForm({ ...editForm, [key]: vals })}
+                                    placeholder="Select Employees"
+                                  />
+                                </div>
+                              )
                             ) : (
-                              ( (key === 'thumbnailLink' || key === 'shootLink') && editForm.postReel === 'Post') ? (
+                              ( (key === 'thumbnailLink' || key === 'shootLink') && editForm.postReel === 'Post') ||
+                              ( ['scriptLink', 'shootLink', 'thumbnailLink', 'caption', 'postingLinkOfIg', 'finalPostLink'].includes(key) && editForm.postReel === 'Story') ? (
                                 <div className="text-slate-400 text-center w-full">-</div>
                               ) : key === 'caption' ? (
                                 <textarea
@@ -1722,6 +1810,9 @@ export function ContentCalendarTable({ clientId, clientName, projectId, projectN
                              >
                                {(() => {
                                  if (['thumbnailDate', 'thumbnailLink', 'shootDate', 'shootLink'].includes(key) && entry.postReel === 'Post') {
+                                   return <span className="text-slate-400 text-center w-full">-</span>;
+                                 }
+                                 if (['scriptDate', 'scriptLink', 'shootDate', 'shootLink', 'thumbnailDate', 'thumbnailLink', 'captionDate', 'caption', 'postingLinkOfIg', 'finalPostLink', 'assignedBrandPersonIds'].includes(key) && entry.postReel === 'Story') {
                                    return <span className="text-slate-400 text-center w-full">-</span>;
                                  }
                                  if (entry[key] && (key.toLowerCase().includes("link") || key === "reference")) {

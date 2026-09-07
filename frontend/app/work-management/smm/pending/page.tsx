@@ -122,19 +122,20 @@ export default function PendingWorkPage() {
       });
 
       const isPost = entry.postReel === 'Post';
-      if (!isPost && entry.scriptDate && !entry.scriptLink) clientsMap[key].tasks.push(enrich('Script', entry.scriptDate, 'scripts'));
-      if (!isPost && entry.shootDate && !entry.shootLink) clientsMap[key].tasks.push(enrich('Shoot', entry.shootDate, 'shoots'));
+      const isStory = entry.postReel === 'Story';
+      if (!isPost && !isStory && entry.scriptDate && entry.scriptDate !== '-' && !entry.scriptLink) clientsMap[key].tasks.push(enrich('Script', entry.scriptDate, 'scripts'));
+      if (!isPost && !isStory && entry.shootDate && entry.shootDate !== '-' && !entry.shootLink && entry.shootLink !== '-') clientsMap[key].tasks.push(enrich('Shoot', entry.shootDate, 'shoots'));
       
       const captionDate = entry.captionDate || entry.editingStart;
-      if (captionDate && !entry.caption) clientsMap[key].tasks.push(enrich('Caption', captionDate, 'captions'));
+      if (!isStory && captionDate && captionDate !== '-' && !entry.caption && entry.caption !== '-') clientsMap[key].tasks.push(enrich('Caption', captionDate, 'captions'));
       
       const thumbnailDate = entry.thumbnailDate || entry.editingStart;
-      if (!isPost && thumbnailDate && !entry.thumbnailLink) clientsMap[key].tasks.push(enrich('Thumbnail', thumbnailDate, 'thumbnails'));
+      if (!isPost && !isStory && thumbnailDate && thumbnailDate !== '-' && !entry.thumbnailLink && entry.thumbnailLink !== '-') clientsMap[key].tasks.push(enrich('Thumbnail', thumbnailDate, 'thumbnails'));
       
-      const isEditingPending = entry.editingStart && (isPost ? !entry.finalPostLink : !entry.finalReelLink);
+      const isEditingPending = entry.editingStart && entry.editingStart !== '-' && (isPost ? !entry.finalPostLink : !entry.finalReelLink);
       if (isEditingPending) clientsMap[key].tasks.push(enrich('Editing', entry.editingStart, 'edits'));
-      if (entry.approval && entry.isApproved !== 'Yes') clientsMap[key].tasks.push(enrich('Approval', entry.approval, 'approvals'));
-      if (entry.postingDate && !entry.postingLinkOfIg) clientsMap[key].tasks.push(enrich('Posting', entry.postingDate, 'posts'));
+      if (entry.approval && entry.approval !== '-' && entry.isApproved !== 'Yes') clientsMap[key].tasks.push(enrich('Approval', entry.approval, 'approvals'));
+      if (!isStory && entry.postingDate && entry.postingDate !== '-' && !entry.postingLinkOfIg && entry.postingLinkOfIg !== '-') clientsMap[key].tasks.push(enrich('Posting', entry.postingDate, 'posts'));
     });
 
     return Object.values(clientsMap)

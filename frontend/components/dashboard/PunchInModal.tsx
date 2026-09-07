@@ -278,7 +278,7 @@ export function PunchInModal({ open, onOpenChange, onConfirm, userId, initialAct
                   
                   const checkStage = (stageName: string, idField: string, dateField: string, linkField: string, linkCheck?: (e:any)=>boolean) => {
                     const originalAssigneeId = entry[idField] || project?.[idField] || client?.[idField];
-                    const isDone = linkCheck ? linkCheck(entry) : !!entry[linkField];
+                    const isDone = linkCheck ? linkCheck(entry) : (!!entry[linkField] && entry[linkField] !== '-');
                     
                     const hasApplicableRemark = entry.remark && entry.remark.trim() !== '' && (
                       !entry.remarkStage || 
@@ -301,7 +301,7 @@ export function PunchInModal({ open, onOpenChange, onConfirm, userId, initialAct
                         dateStr = entry.editingStart;
                       }
                       
-                      if (!dateStr) return; // SMM strictly requires a date for CC tasks
+                      if (!dateStr || dateStr === '-') return; // SMM strictly requires a valid date for CC tasks
 
                       const taskName = entry.concept || entry.topic || (entry.postReel ? `${entry.postReel} Content` : `Task for ${entry.postingDate || entry.monthYear || 'Unknown Date'}`);
                       
@@ -316,16 +316,17 @@ export function PunchInModal({ open, onOpenChange, onConfirm, userId, initialAct
                   };
                   
                   const isPost = entry.postReel === "Post";
-                  if (!isPost) checkStage('Script', 'assignedScriptwriterId', 'scriptDate', 'scriptLink');
-                  if (!isPost) checkStage('Shoot', 'assignedShooterId', 'shootDate', 'shootLink');
-                  checkStage('Caption', 'assignedCaptionWriterId', 'captionDate', 'caption');
-                  if (!isPost) checkStage('Thumbnail', 'assignedThumbnailDesignerId', 'thumbnailDate', 'thumbnailLink');
+                  const isStory = entry.postReel === "Story";
+                  if (!isPost && !isStory) checkStage('Script', 'assignedScriptwriterId', 'scriptDate', 'scriptLink');
+                  if (!isPost && !isStory) checkStage('Shoot', 'assignedShooterId', 'shootDate', 'shootLink');
+                  if (!isStory) checkStage('Caption', 'assignedCaptionWriterId', 'captionDate', 'caption');
+                  if (!isPost && !isStory) checkStage('Thumbnail', 'assignedThumbnailDesignerId', 'thumbnailDate', 'thumbnailLink');
                   
                   const editIdField = isPost ? 'assignedPostDesignerId' : 'assignedReelEditorId';
                   const editLinkField = isPost ? 'finalPostLink' : 'finalReelLink';
                   checkStage('Editing', editIdField, 'editingStart', editLinkField);
                   checkStage('Approval', 'assignedApproverId', 'approval', 'isApproved', (e) => e.isApproved === 'Yes');
-                  checkStage('Posting', 'assignedPosterId', 'postingDate', 'postingLinkOfIg');
+                  if (!isStory) checkStage('Posting', 'assignedPosterId', 'postingDate', 'postingLinkOfIg');
                 });
               }
               

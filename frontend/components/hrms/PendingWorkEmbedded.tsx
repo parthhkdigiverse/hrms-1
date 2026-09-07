@@ -17,8 +17,9 @@ import { useConfirm } from "@/context/ConfirmContext";
 const isStageSubsequentOrEqual = (stageName: string, remarkStageName: string, postReel?: string) => {
   const reelStages = ['Script', 'Shoot', 'Brand Person', 'Editing', 'Caption', 'Thumbnail', 'Approval', 'Posting'];
   const postStages = ['Post/Graphics', 'Brand Person', 'Caption', 'Approval', 'Posting'];
+  const storyStages = ['Editing', 'Approval'];
   
-  const stages = postReel === 'Post' ? postStages : reelStages;
+  const stages = postReel === 'Post' ? postStages : postReel === 'Story' ? storyStages : reelStages;
   const remarkIdx = stages.findIndex(s => s.toLowerCase() === remarkStageName.toLowerCase());
   const stageIdx = stages.findIndex(s => s.toLowerCase() === stageName.toLowerCase());
   
@@ -530,10 +531,13 @@ export function PendingWorkEmbedded({
         return isAssignedToMe;
       };
 
-      if (entry.postReel !== 'Post' && entry.scriptDate && !entry.scriptLink && canSeeTask('Script')) tasks.push(enrich('Script', entry.scriptDate, 'scripts'));
-      if (entry.postReel !== 'Post' && entry.shootDate && !entry.shootLink && canSeeTask('Shoot')) tasks.push(enrich('Shoot', entry.shootDate, 'shoots'));
+      const isPost = entry.postReel === 'Post';
+      const isStory = entry.postReel === 'Story';
+
+      if (!isPost && !isStory && entry.scriptDate && entry.scriptDate !== '-' && !entry.scriptLink && canSeeTask('Script')) tasks.push(enrich('Script', entry.scriptDate, 'scripts'));
+      if (!isPost && !isStory && entry.shootDate && entry.shootDate !== '-' && !entry.shootLink && entry.shootLink !== '-' && canSeeTask('Shoot')) tasks.push(enrich('Shoot', entry.shootDate, 'shoots'));
       
-      if (entry.assignedBrandPersonIds && (!entry.shootLink || entry.shootLink === '-')) {
+      if (!isStory && entry.assignedBrandPersonIds && (!entry.shootLink || entry.shootLink === '-')) {
         const bpIdsRaw = entry.assignedBrandPersonIds;
         const bpIds = Array.isArray(bpIdsRaw) ? bpIdsRaw : (typeof bpIdsRaw === 'string' ? bpIdsRaw.split(',').map((id: string) => id.trim()).filter(Boolean) : []);
         bpIds.forEach((bpId: string) => {
@@ -564,15 +568,15 @@ export function PendingWorkEmbedded({
       }
 
       const captionDate = entry.captionDate || entry.editingStart;
-      if (captionDate && !entry.caption && canSeeTask('Caption')) tasks.push(enrich('Caption', captionDate, 'captions'));
+      if (!isStory && captionDate && captionDate !== '-' && !entry.caption && entry.caption !== '-' && canSeeTask('Caption')) tasks.push(enrich('Caption', captionDate, 'captions'));
 
       const thumbnailDate = entry.thumbnailDate || entry.editingStart;
-      if (entry.postReel !== 'Post' && thumbnailDate && !entry.thumbnailLink && canSeeTask('Thumbnail')) tasks.push(enrich('Thumbnail', thumbnailDate, 'thumbnails'));
+      if (!isPost && !isStory && thumbnailDate && thumbnailDate !== '-' && !entry.thumbnailLink && entry.thumbnailLink !== '-' && canSeeTask('Thumbnail')) tasks.push(enrich('Thumbnail', thumbnailDate, 'thumbnails'));
 
-      const isEditingPending = entry.editingStart && (entry.postReel === 'Post' ? !entry.finalPostLink : !entry.finalReelLink);
+      const isEditingPending = entry.editingStart && entry.editingStart !== '-' && (isPost ? !entry.finalPostLink : !entry.finalReelLink);
       if (isEditingPending && canSeeTask('Editing')) tasks.push(enrich('Editing', entry.editingStart, 'edits'));
-      if (entry.approval && entry.isApproved !== 'Yes' && canSeeTask('Approval')) tasks.push(enrich('Approval', entry.approval, 'approvals'));
-      if (entry.postingDate && !entry.postingLinkOfIg && canSeeTask('Posting')) tasks.push(enrich('Posting', entry.postingDate, 'posts'));
+      if (entry.approval && entry.approval !== '-' && entry.isApproved !== 'Yes' && canSeeTask('Approval')) tasks.push(enrich('Approval', entry.approval, 'approvals'));
+      if (!isStory && entry.postingDate && entry.postingDate !== '-' && !entry.postingLinkOfIg && entry.postingLinkOfIg !== '-' && canSeeTask('Posting')) tasks.push(enrich('Posting', entry.postingDate, 'posts'));
     });
 
     if (projects) {

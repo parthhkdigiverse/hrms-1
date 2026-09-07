@@ -54,8 +54,9 @@ const isStageSubsequentOrEqual = (stageName: string, remarkStageName?: string, p
   if (!remarkStageName) return true;
   const reelStages = ['Script', 'Shoot', 'Brand Person', 'Editing', 'Caption', 'Thumbnail', 'Approval', 'Posting'];
   const postStages = ['Post/Graphics', 'Brand Person', 'Caption', 'Approval', 'Posting'];
+  const storyStages = ['Editing', 'Approval'];
   
-  const stages = postReel === 'Post' ? postStages : reelStages;
+  const stages = postReel === 'Post' ? postStages : postReel === 'Story' ? storyStages : reelStages;
   const remarkIdx = stages.findIndex(s => s.toLowerCase() === remarkStageName.toLowerCase());
   const stageIdx = stages.findIndex(s => s.toLowerCase() === stageName.toLowerCase());
   
@@ -367,15 +368,18 @@ export function MyTasksView({ targetUserId, isEmbedded = false, targetDate }: My
           }
         }
 
-        if (entry.postReel !== 'Post' && entry.scriptDate) {
-          checkAndAddCreativeTask('Script', entry.scriptDate, !!entry.scriptLink)
+        const isPost = entry.postReel === 'Post';
+        const isStory = entry.postReel === 'Story';
+
+        if (!isPost && !isStory && entry.scriptDate && entry.scriptDate !== '-') {
+          checkAndAddCreativeTask('Script', entry.scriptDate, !!entry.scriptLink && entry.scriptLink !== '-')
         }
-        if (entry.postReel !== 'Post' && entry.shootDate) {
+        if (!isPost && !isStory && entry.shootDate && entry.shootDate !== '-') {
           checkAndAddCreativeTask('Shoot', entry.shootDate, !!entry.shootLink && entry.shootLink !== '-')
         }
         
         // Brand Person Check
-        if (entry.assignedBrandPersonIds && (!entry.shootLink || entry.shootLink === '-')) {
+        if (!isStory && entry.assignedBrandPersonIds && (!entry.shootLink || entry.shootLink === '-')) {
           const bpIdsRaw = entry.assignedBrandPersonIds;
           const bpIds = Array.isArray(bpIdsRaw) ? bpIdsRaw : (typeof bpIdsRaw === 'string' ? bpIdsRaw.split(',').map((id: string) => id.trim()).filter(Boolean) : []);
           bpIds.forEach((bpId: string) => {
@@ -405,21 +409,21 @@ export function MyTasksView({ targetUserId, isEmbedded = false, targetDate }: My
         }
 
         const captionDate = entry.captionDate || entry.editingStart;
-        if (captionDate) {
-          checkAndAddCreativeTask('Caption', captionDate, !!entry.caption)
+        if (!isStory && captionDate && captionDate !== '-') {
+          checkAndAddCreativeTask('Caption', captionDate, !!entry.caption && entry.caption !== '-')
         }
-        if (entry.postReel !== 'Post' && entry.thumbnailDate) {
-          checkAndAddCreativeTask('Thumbnail', entry.thumbnailDate, !!entry.thumbnailLink)
+        if (!isPost && !isStory && entry.thumbnailDate && entry.thumbnailDate !== '-') {
+          checkAndAddCreativeTask('Thumbnail', entry.thumbnailDate, !!entry.thumbnailLink && entry.thumbnailLink !== '-')
         }
-        if (entry.editingStart) {
-          const isDone = entry.postReel === 'Post' ? !!entry.finalPostLink : !!entry.finalReelLink
+        if (entry.editingStart && entry.editingStart !== '-') {
+          const isDone = isPost ? !!entry.finalPostLink : !!entry.finalReelLink
           checkAndAddCreativeTask('Editing', entry.editingStart, isDone)
         }
-        if (entry.approval) {
+        if (entry.approval && entry.approval !== '-') {
           checkAndAddCreativeTask('Approval', entry.approval, entry.isApproved === 'Yes')
         }
-        if (entry.postingDate) {
-          checkAndAddCreativeTask('Posting', entry.postingDate, !!entry.postingLinkOfIg)
+        if (!isStory && entry.postingDate && entry.postingDate !== '-') {
+          checkAndAddCreativeTask('Posting', entry.postingDate, !!entry.postingLinkOfIg && entry.postingLinkOfIg !== '-')
         }
       }
     })
