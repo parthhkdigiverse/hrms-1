@@ -4307,6 +4307,18 @@ async def get_all_content_calendar_entries(db=Depends(get_db)):
         print(traceback.format_exc())
         return {"error": str(e), "trace": traceback.format_exc()}
 
+@app.get("/content-calendar/entry/{entry_id}")
+async def get_single_content_calendar_entry(entry_id: str, db=Depends(get_db)):
+    try:
+        entry = await crud.get_content_calendar_entry(db, entry_id)
+        if not entry:
+            raise HTTPException(status_code=404, detail="Entry not found")
+        return entry
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/content-calendar")
 async def get_content_calendar_entries(clientId: str, projectId: Optional[str] = None, monthYear: Optional[str] = None, includeLegacy: bool = False, db=Depends(get_db)):
     try:

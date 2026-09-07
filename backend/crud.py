@@ -9356,13 +9356,33 @@ async def update_pc_restrictions(db, hostname: str, block_chrome: Optional[bool]
     updated = await db.registered_pcs.find_one({"hostname": {"$regex": f"^{re.escape(hostname)}$", "$options": "i"}})
     return fix_id(updated) if updated else None
 # --- Content Calendar Operations ---
+_cc_all_cache = {"data": None, "timestamp": 0}
+
+def invalidate_cc_all_cache():
+    global _cc_all_cache
+    _cc_all_cache = {"data": None, "timestamp": 0}
+
 async def get_all_content_calendar_entries(db):
+    global _cc_all_cache
+    now = time.time()
+    if _cc_all_cache["data"] is not None and (now - _cc_all_cache["timestamp"] < 60):
+        return _cc_all_cache["data"]
     try:
-        cursor = db.content_calendar_entries.find({})
+        cursor = db.content_calendar_entries.find({}, {"logs": 0})
         entries = await cursor.to_list(length=5000)
-        return [fix_id(e) for e in entries]
+        data = [fix_id(e) for e in entries]
+        _cc_all_cache = {"data": data, "timestamp": now}
+        return data
     except Exception as e:
+        if _cc_all_cache["data"] is not None:
+            return _cc_all_cache["data"]
         raise e
+
+async def get_content_calendar_entry(db, entry_id: str):
+    if not ObjectId.is_valid(entry_id):
+        return None
+    entry = await db.content_calendar_entries.find_one({"_id": ObjectId(entry_id)})
+    return fix_id(entry) if entry else None
 
 async def get_content_calendar_entries(db, client_id: str, project_id: str = None, month_year: str = None, include_legacy: bool = False):
     try:
@@ -9431,6 +9451,7 @@ async def create_content_calendar_entry(db, entry_data: dict):
         "userName": updated_by
     }]
     new_doc = await db.content_calendar_entries.insert_one(entry_data)
+    invalidate_cc_all_cache()
     created = await db.content_calendar_entries.find_one({"_id": new_doc.inserted_id})
     return fix_id(created)
 
@@ -9483,6 +9504,7 @@ async def update_content_calendar_entry(db, entry_id: str, update_data: dict):
         {"_id": ObjectId(entry_id)},
         {"$set": update_data}
     )
+    invalidate_cc_all_cache()
     updated = await db.content_calendar_entries.find_one({"_id": ObjectId(entry_id)})
     return fix_id(updated) if updated else None
 
@@ -9490,6 +9512,7 @@ async def delete_content_calendar_entry(db, entry_id: str):
     if not ObjectId.is_valid(entry_id):
         return False
     res = await db.content_calendar_entries.delete_one({"_id": ObjectId(entry_id)})
+    invalidate_cc_all_cache()
     return res.deleted_count > 0
 
 async def get_content_calendar_settings(db, client_id: str, month_year: str, project_id: str = None):

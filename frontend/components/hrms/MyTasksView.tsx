@@ -351,9 +351,12 @@ export function MyTasksView({ targetUserId, isEmbedded = false, targetDate }: My
             const empName = employees.find(e => e.id === assigneeId)?.name || currentUser?.name || 'User'
             const enrichedEntry = { ...entry, assignerName: creatorName, assigneeName: empName }
 
+            const cleanConcept = (entry.concept && entry.concept.trim() !== '-') ? entry.concept.trim() : '';
+            const cleanTopic = (entry.topic && entry.topic.trim() !== '-') ? entry.topic.trim() : '';
+
             consolidated.push({
               id: `${entry.id}-${stageName}`,
-              title: entry.concept || entry.topic || (entry.postReel ? `${entry.postReel} Content` : 'SMM Task'),
+              title: cleanConcept || cleanTopic || (entry.postReel ? `${entry.postReel} Content` : 'SMM Task'),
               clientDisplayName: assocProject ? `${assocProject.title}${client ? ` (${client.companyName || client.clientName})` : ''}` : (client ? (client.companyName || client.clientName) : 'Unknown Client'),
               stage: stageName,
               dueDate: deadline.includes('T') ? deadline.split('T')[0] : deadline,
@@ -372,10 +375,10 @@ export function MyTasksView({ targetUserId, isEmbedded = false, targetDate }: My
         const isStory = entry.postReel === 'Story';
 
         if (!isPost && !isStory && entry.scriptDate && entry.scriptDate !== '-') {
-          checkAndAddCreativeTask('Script', entry.scriptDate, !!entry.scriptLink && entry.scriptLink !== '-')
+          checkAndAddCreativeTask('Script', entry.scriptDate, !!entry.scriptLink)
         }
         if (!isPost && !isStory && entry.shootDate && entry.shootDate !== '-') {
-          checkAndAddCreativeTask('Shoot', entry.shootDate, !!entry.shootLink && entry.shootLink !== '-')
+          checkAndAddCreativeTask('Shoot', entry.shootDate, !!entry.shootLink)
         }
         
         // Brand Person Check
@@ -390,9 +393,12 @@ export function MyTasksView({ targetUserId, isEmbedded = false, targetDate }: My
               const empName = employees.find(e => e.id === bpId)?.name || currentUser?.name || 'User'
               const enrichedEntry = { ...entry, assignerName: creatorName, assigneeName: empName }
               
+              const cleanConcept = (entry.concept && entry.concept.trim() !== '-') ? entry.concept.trim() : '';
+              const cleanTopic = (entry.topic && entry.topic.trim() !== '-') ? entry.topic.trim() : '';
+
               consolidated.push({
                 id: `${entry.id}-BrandPerson`,
-                title: entry.concept || entry.topic || (entry.postReel ? `${entry.postReel} Content` : 'SMM Task'),
+                title: cleanConcept || cleanTopic || (entry.postReel ? `${entry.postReel} Content` : 'SMM Task'),
                 clientDisplayName: assocProject ? `${assocProject.title}${client ? ` (${client.companyName || client.clientName})` : ''}` : (client ? (client.companyName || client.clientName) : 'Unknown Client'),
                 stage: 'Brand Person',
                 dueDate: taskDeadline,
@@ -410,10 +416,10 @@ export function MyTasksView({ targetUserId, isEmbedded = false, targetDate }: My
 
         const captionDate = entry.captionDate || entry.editingStart;
         if (!isStory && captionDate && captionDate !== '-') {
-          checkAndAddCreativeTask('Caption', captionDate, !!entry.caption && entry.caption !== '-')
+          checkAndAddCreativeTask('Caption', captionDate, !!entry.caption)
         }
         if (!isPost && !isStory && entry.thumbnailDate && entry.thumbnailDate !== '-') {
-          checkAndAddCreativeTask('Thumbnail', entry.thumbnailDate, !!entry.thumbnailLink && entry.thumbnailLink !== '-')
+          checkAndAddCreativeTask('Thumbnail', entry.thumbnailDate, !!entry.thumbnailLink)
         }
         if (entry.editingStart && entry.editingStart !== '-') {
           const isDone = isPost ? !!entry.finalPostLink : !!entry.finalReelLink
@@ -423,7 +429,7 @@ export function MyTasksView({ targetUserId, isEmbedded = false, targetDate }: My
           checkAndAddCreativeTask('Approval', entry.approval, entry.isApproved === 'Yes')
         }
         if (!isStory && entry.postingDate && entry.postingDate !== '-') {
-          checkAndAddCreativeTask('Posting', entry.postingDate, !!entry.postingLinkOfIg && entry.postingLinkOfIg !== '-')
+          checkAndAddCreativeTask('Posting', entry.postingDate, !!entry.postingLinkOfIg)
         }
       }
     })

@@ -278,7 +278,7 @@ export function PunchInModal({ open, onOpenChange, onConfirm, userId, initialAct
                   
                   const checkStage = (stageName: string, idField: string, dateField: string, linkField: string, linkCheck?: (e:any)=>boolean) => {
                     const originalAssigneeId = entry[idField] || project?.[idField] || client?.[idField];
-                    const isDone = linkCheck ? linkCheck(entry) : (!!entry[linkField] && entry[linkField] !== '-');
+                    const isDone = linkCheck ? linkCheck(entry) : (!!entry[linkField] && entry[linkField].trim() !== '');
                     
                     const hasApplicableRemark = entry.remark && entry.remark.trim() !== '' && (
                       !entry.remarkStage || 
@@ -301,9 +301,11 @@ export function PunchInModal({ open, onOpenChange, onConfirm, userId, initialAct
                         dateStr = entry.editingStart;
                       }
                       
-                      if (!dateStr || dateStr === '-') return; // SMM strictly requires a valid date for CC tasks
+                      if (!dateStr || dateStr === '-' || dateStr.trim() === '') return; // SMM strictly requires a valid date for CC tasks
 
-                      const taskName = entry.concept || entry.topic || (entry.postReel ? `${entry.postReel} Content` : `Task for ${entry.postingDate || entry.monthYear || 'Unknown Date'}`);
+                      const cleanConcept = (entry.concept && entry.concept.trim() !== '-') ? entry.concept.trim() : '';
+                      const cleanTopic = (entry.topic && entry.topic.trim() !== '-') ? entry.topic.trim() : '';
+                      const taskName = cleanConcept || cleanTopic || (entry.postReel ? `${entry.postReel} Content` : `Task for ${entry.postingDate || entry.monthYear || 'Unknown Date'}`);
                       
                       smmTasks.push({
                         id: `${entry.id || entry._id}-${stageName}`,

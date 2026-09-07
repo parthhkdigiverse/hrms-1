@@ -118,8 +118,10 @@ export function PendingWorkEmbedded({
   const { confirm } = useConfirm();
   
   const [entries, setEntries] = useState<any[]>([]);
+  const [entriesLoaded, setEntriesLoaded] = useState(false);
   const [otherWorkEntries, setOtherWorkEntries] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
+  const [clientsLoaded, setClientsLoaded] = useState(false);
   const [clientProjects, setClientProjects] = useState<Record<string, any>>({});
   const [projects, setProjects] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
@@ -138,6 +140,7 @@ export function PendingWorkEmbedded({
   const [editingRemarkId, setEditingRemarkId] = useState<string | null>(null);
   const [editingRemarkValue, setEditingRemarkValue] = useState<string>('');
   const [editingIsClientIssue, setEditingIsClientIssue] = useState<boolean>(false);
+  const [isSubmittingRemark, setIsSubmittingRemark] = useState<boolean>(false);
   
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<any[]>([]);
@@ -165,8 +168,23 @@ export function PendingWorkEmbedded({
   const [logsDialogOpen, setLogsDialogOpen] = useState(false);
   const [currentLogs, setCurrentLogs] = useState<any[]>([]);
 
-  const handleOpenLogs = (entry: any) => {
-    setCurrentLogs(entry.logs || []);
+  const handleOpenLogs = async (entry: any) => {
+    if (entry.logs && Array.isArray(entry.logs) && entry.logs.length > 0) {
+      setCurrentLogs(entry.logs);
+      setLogsDialogOpen(true);
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/content-calendar/entry/${entry.id || entry._id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentLogs(data.logs || []);
+      } else {
+        setCurrentLogs([]);
+      }
+    } catch {
+      setCurrentLogs([]);
+    }
     setLogsDialogOpen(true);
   };
 
@@ -400,11 +418,15 @@ export function PendingWorkEmbedded({
         }
       }
       
-      if (entriesRes.ok && clientsRes.ok) {
+      if (entriesRes.ok) {
         const fetchedEntries = await entriesRes.json();
+        setEntries(Array.isArray(fetchedEntries) ? fetchedEntries : []);
+        setEntriesLoaded(true);
+      }
+      if (clientsRes.ok) {
         const fetchedClients = await clientsRes.json();
-        setEntries(fetchedEntries);
-        setClients(fetchedClients);
+        setClients(Array.isArray(fetchedClients) ? fetchedClients : []);
+        setClientsLoaded(true);
       }
       
       if (otherWorkRes.ok) {
@@ -483,6 +505,11 @@ export function PendingWorkEmbedded({
 
         const finalStage = (stage === 'Editing' && entry.postReel === 'Post') ? 'Post/Graphics' : stage;
         const transfer = incomingRequests.find((r: any) => r.taskId === (entry.id || entry._id) && r.stage === finalStage && r.status === 'Accepted' && String(r.receiverId) === String(user?.id));
+        
+        const cleanConcept = (entry.concept && entry.concept.trim() !== '-') ? entry.concept.trim() : '';
+        const cleanTopic = (entry.topic && entry.topic.trim() !== '-') ? entry.topic.trim() : '';
+        const dynamicTaskName = cleanConcept || cleanTopic || (entry.postReel ? `${entry.postReel} Content` : `Task for ${entry.postingDate || entry.monthYear || 'Unknown Date'}`);
+
         return {
           ...entry,
           clientDisplayName: displayName,
@@ -492,7 +519,7 @@ export function PendingWorkEmbedded({
           deadline,
           isTransferredToMe: !!transfer,
           type,
-          taskName: entry.concept || entry.topic || (entry.postReel ? `${entry.postReel} Content` : `Task for ${entry.postingDate || entry.monthYear || 'Unknown Date'}`),
+          taskName: dynamicTaskName,
           assigneeName: assignee ? `${assignee.firstName} ${assignee.lastName}` : null,
           assignerName: assigner ? `${assigner.firstName} ${assigner.lastName}` : null,
           assigneeId: assigneeId,
@@ -535,7 +562,7 @@ export function PendingWorkEmbedded({
       const isStory = entry.postReel === 'Story';
 
       if (!isPost && !isStory && entry.scriptDate && entry.scriptDate !== '-' && !entry.scriptLink && canSeeTask('Script')) tasks.push(enrich('Script', entry.scriptDate, 'scripts'));
-      if (!isPost && !isStory && entry.shootDate && entry.shootDate !== '-' && !entry.shootLink && entry.shootLink !== '-' && canSeeTask('Shoot')) tasks.push(enrich('Shoot', entry.shootDate, 'shoots'));
+      if (!isPost && !isStory && entry.shootDate && entry.shootDate !== '-' && !entry.shootLink && canSeeTask('Shoot')) tasks.push(enrich('Shoot', entry.shootDate, 'shoots'));
       
       if (!isStory && entry.assignedBrandPersonIds && (!entry.shootLink || entry.shootLink === '-')) {
         const bpIdsRaw = entry.assignedBrandPersonIds;
@@ -549,6 +576,10 @@ export function PendingWorkEmbedded({
              
              const taskDeadline = entry.shootDate || entry.postingDate || (entry.monthYear ? `${entry.monthYear}-28` : new Date().toISOString().split('T')[0]);
              
+             const cleanConcept = (entry.concept && entry.concept.trim() !== '-') ? entry.concept.trim() : '';
+             const cleanTopic = (entry.topic && entry.topic.trim() !== '-') ? entry.topic.trim() : '';
+             const bpTaskName = cleanConcept || cleanTopic || (entry.postReel ? `${entry.postReel} Content` : `Task for ${entry.postingDate || entry.monthYear || 'Unknown Date'}`);
+
              tasks.push({
                ...entry,
                clientDisplayName: displayName,
@@ -557,7 +588,7 @@ export function PendingWorkEmbedded({
                stage: 'Brand Person',
                deadline: taskDeadline,
                type: 'brand-person',
-               taskName: entry.concept || entry.topic || (entry.postReel ? `${entry.postReel} Content` : `Task for ${entry.postingDate || entry.monthYear || 'Unknown Date'}`),
+               taskName: bpTaskName,
                assigneeName: assignee ? (assignee.name || `${assignee.firstName} ${assignee.lastName}`) : null,
                assignerName: assigner ? (assigner.name || `${assigner.firstName} ${assigner.lastName}`) : null,
                assigneeId: bpId,
@@ -568,15 +599,15 @@ export function PendingWorkEmbedded({
       }
 
       const captionDate = entry.captionDate || entry.editingStart;
-      if (!isStory && captionDate && captionDate !== '-' && !entry.caption && entry.caption !== '-' && canSeeTask('Caption')) tasks.push(enrich('Caption', captionDate, 'captions'));
+      if (!isStory && captionDate && captionDate !== '-' && !entry.caption && canSeeTask('Caption')) tasks.push(enrich('Caption', captionDate, 'captions'));
 
       const thumbnailDate = entry.thumbnailDate || entry.editingStart;
-      if (!isPost && !isStory && thumbnailDate && thumbnailDate !== '-' && !entry.thumbnailLink && entry.thumbnailLink !== '-' && canSeeTask('Thumbnail')) tasks.push(enrich('Thumbnail', thumbnailDate, 'thumbnails'));
+      if (!isPost && !isStory && thumbnailDate && thumbnailDate !== '-' && !entry.thumbnailLink && canSeeTask('Thumbnail')) tasks.push(enrich('Thumbnail', thumbnailDate, 'thumbnails'));
 
       const isEditingPending = entry.editingStart && entry.editingStart !== '-' && (isPost ? !entry.finalPostLink : !entry.finalReelLink);
       if (isEditingPending && canSeeTask('Editing')) tasks.push(enrich('Editing', entry.editingStart, 'edits'));
       if (entry.approval && entry.approval !== '-' && entry.isApproved !== 'Yes' && canSeeTask('Approval')) tasks.push(enrich('Approval', entry.approval, 'approvals'));
-      if (!isStory && entry.postingDate && entry.postingDate !== '-' && !entry.postingLinkOfIg && entry.postingLinkOfIg !== '-' && canSeeTask('Posting')) tasks.push(enrich('Posting', entry.postingDate, 'posts'));
+      if (!isStory && entry.postingDate && entry.postingDate !== '-' && !entry.postingLinkOfIg && canSeeTask('Posting')) tasks.push(enrich('Posting', entry.postingDate, 'posts'));
     });
 
     if (projects) {
@@ -692,110 +723,112 @@ export function PendingWorkEmbedded({
     });
 
     // Add assigned SMM onboarding tasks
-    Object.values(clientProjects).forEach((project: any) => {
-      if (project.status === "on-hold" || project.status === "onhold" || project.status?.toLowerCase() === "on-hold") return;
-      
-      const client = clients.find(c => c.id === project.clientId) || {};
-      const clientName = client ? (client.companyName || client.clientName || 'Unknown Client') : 'Unknown Client';
-      const displayName = `${project.title} (${clientName})`;
-      
-      const uId = user?.id;
-      const isManagerOrAdmin = ['Team Leader', 'Admin', 'HR', 'Manager', 'Social Media Manager'].includes(user?.role) || user?.role?.toLowerCase() === 'admin';
-      const deadlineStr = new Date().toISOString().split('T')[0];
+    if (clientsLoaded) {
+      Object.values(clientProjects).forEach((project: any) => {
+        if (project.status === "on-hold" || project.status === "onhold" || project.status?.toLowerCase() === "on-hold") return;
+        
+        const client = clients.find(c => String(c.id || c._id) === String(project.clientId)) || {};
+        const clientName = client ? (client.companyName || client.clientName || 'Unknown Client') : 'Unknown Client';
+        const displayName = `${project.title} (${clientName})`;
+        
+        const uId = user?.id;
+        const isManagerOrAdmin = ['Team Leader', 'Admin', 'HR', 'Manager', 'Social Media Manager'].includes(user?.role) || user?.role?.toLowerCase() === 'admin';
+        const deadlineStr = new Date().toISOString().split('T')[0];
 
-      // 1. WhatsApp Group
-      const waAssigneeId = project.assignedWhatsappGroupCreatorId || client.assignedWhatsappGroupCreatorId;
-      if (waAssigneeId && !client.whatsappGroup) {
-        if ((isManagerOrAdmin && (type === 'all' || workScope === 'all')) || waAssigneeId === uId) {
-          const assignee = employees.find((e: any) => e.id === waAssigneeId);
-          tasks.push({
-            id: `${project.id}-whatsapp`,
-            clientDisplayName: displayName,
-            clientId: project.clientId || project.id,
-            projectId: project.id,
-            stage: 'WhatsApp Group',
-            deadline: deadlineStr,
-            type: 'whatsapp-group',
-            taskName: 'Create WhatsApp Group',
-            assigneeName: assignee ? `${assignee.firstName} ${assignee.lastName}` : 'Unassigned',
-            assigneeId: waAssigneeId,
-            assignerName: null,
-            assignerId: null,
-            isFollowup: false
-          });
+        // 1. WhatsApp Group
+        const waAssigneeId = project.assignedWhatsappGroupCreatorId || client.assignedWhatsappGroupCreatorId;
+        if (waAssigneeId && !client.whatsappGroup) {
+          if ((isManagerOrAdmin && (type === 'all' || workScope === 'all')) || waAssigneeId === uId) {
+            const assignee = employees.find((e: any) => e.id === waAssigneeId);
+            tasks.push({
+              id: `${project.id}-whatsapp`,
+              clientDisplayName: displayName,
+              clientId: project.clientId || project.id,
+              projectId: project.id,
+              stage: 'WhatsApp Group',
+              deadline: deadlineStr,
+              type: 'whatsapp-group',
+              taskName: 'Create WhatsApp Group',
+              assigneeName: assignee ? `${assignee.firstName} ${assignee.lastName}` : 'Unassigned',
+              assigneeId: waAssigneeId,
+              assignerName: null,
+              assignerId: null,
+              isFollowup: false
+            });
+          }
         }
-      }
 
-      // 2. Greetings Msg
-      const greetingAssigneeId = project.assignedGreetingsMsgSenderId || client.assignedGreetingsMsgSenderId;
-      if (greetingAssigneeId && !client.greetingsMsgSent) {
-        if ((isManagerOrAdmin && (type === 'all' || workScope === 'all')) || greetingAssigneeId === uId) {
-          const assignee = employees.find((e: any) => e.id === greetingAssigneeId);
-          tasks.push({
-            id: `${project.id}-greetings`,
-            clientDisplayName: displayName,
-            clientId: project.clientId || project.id,
-            projectId: project.id,
-            stage: 'Greetings Msg',
-            deadline: deadlineStr,
-            type: 'greetings-msg',
-            taskName: 'Send Greetings Msg',
-            assigneeName: assignee ? `${assignee.firstName} ${assignee.lastName}` : 'Unassigned',
-            assigneeId: greetingAssigneeId,
-            assignerName: null,
-            assignerId: null,
-            isFollowup: false
-          });
+        // 2. Greetings Msg
+        const greetingAssigneeId = project.assignedGreetingsMsgSenderId || client.assignedGreetingsMsgSenderId;
+        if (greetingAssigneeId && !client.greetingsMsgSent) {
+          if ((isManagerOrAdmin && (type === 'all' || workScope === 'all')) || greetingAssigneeId === uId) {
+            const assignee = employees.find((e: any) => e.id === greetingAssigneeId);
+            tasks.push({
+              id: `${project.id}-greetings`,
+              clientDisplayName: displayName,
+              clientId: project.clientId || project.id,
+              projectId: project.id,
+              stage: 'Greetings Msg',
+              deadline: deadlineStr,
+              type: 'greetings-msg',
+              taskName: 'Send Greetings Msg',
+              assigneeName: assignee ? `${assignee.firstName} ${assignee.lastName}` : 'Unassigned',
+              assigneeId: greetingAssigneeId,
+              assignerName: null,
+              assignerId: null,
+              isFollowup: false
+            });
+          }
         }
-      }
 
-      // 3. Meetings
-      const meetingAssigneeId = project.assignedMeetingsAssigneeId || client.assignedMeetingsAssigneeId;
-      if (meetingAssigneeId && (!client.meetings || client.meetings.length === 0)) {
-        if ((isManagerOrAdmin && (type === 'all' || workScope === 'all')) || meetingAssigneeId === uId) {
-          const assignee = employees.find((e: any) => e.id === meetingAssigneeId);
-          tasks.push({
-            id: `${project.id}-meetings`,
-            clientDisplayName: displayName,
-            clientId: project.clientId || project.id,
-            projectId: project.id,
-            stage: 'Meeting',
-            deadline: deadlineStr,
-            type: 'meetings',
-            taskName: 'Schedule/Conduct Meeting',
-            assigneeName: assignee ? `${assignee.firstName} ${assignee.lastName}` : 'Unassigned',
-            assigneeId: meetingAssigneeId,
-            assignerName: null,
-            assignerId: null,
-            isFollowup: false
-          });
+        // 3. Meetings
+        const meetingAssigneeId = project.assignedMeetingsAssigneeId || client.assignedMeetingsAssigneeId;
+        if (meetingAssigneeId && (!client.meetings || client.meetings.length === 0)) {
+          if ((isManagerOrAdmin && (type === 'all' || workScope === 'all')) || meetingAssigneeId === uId) {
+            const assignee = employees.find((e: any) => e.id === meetingAssigneeId);
+            tasks.push({
+              id: `${project.id}-meetings`,
+              clientDisplayName: displayName,
+              clientId: project.clientId || project.id,
+              projectId: project.id,
+              stage: 'Meeting',
+              deadline: deadlineStr,
+              type: 'meetings',
+              taskName: 'Schedule/Conduct Meeting',
+              assigneeName: assignee ? `${assignee.firstName} ${assignee.lastName}` : 'Unassigned',
+              assigneeId: meetingAssigneeId,
+              assignerName: null,
+              assignerId: null,
+              isFollowup: false
+            });
+          }
         }
-      }
 
-      // 4. Content Calendar Create
-      const ccAssigneeId = project.assignedContentCalendarCreatorId || client.assignedContentCalendarCreatorId;
-      const ccCreated = entries.some(e => e.clientId === project.clientId || e.projectId === project.id);
-      if (ccAssigneeId && !ccCreated) {
-        if ((isManagerOrAdmin && (type === 'all' || workScope === 'all')) || ccAssigneeId === uId) {
-          const assignee = employees.find((e: any) => e.id === ccAssigneeId);
-          tasks.push({
-            id: `${project.id}-cc-create`,
-            clientDisplayName: displayName,
-            clientId: project.clientId || project.id,
-            projectId: project.id,
-            stage: 'Content Calendar',
-            deadline: deadlineStr,
-            type: 'content-calendar-create',
-            taskName: 'Create Content Calendar (Sheet)',
-            assigneeName: assignee ? `${assignee.firstName} ${assignee.lastName}` : 'Unassigned',
-            assigneeId: ccAssigneeId,
-            assignerName: null,
-            assignerId: null,
-            isFollowup: false
-          });
+        // 4. Content Calendar Create
+        const ccAssigneeId = project.assignedContentCalendarCreatorId || client.assignedContentCalendarCreatorId;
+        const ccCreated = entries.some(e => String(e.clientId) === String(project.clientId) || (project.id && String(e.projectId) === String(project.id)));
+        if (entriesLoaded && ccAssigneeId && !ccCreated) {
+          if ((isManagerOrAdmin && (type === 'all' || workScope === 'all')) || ccAssigneeId === uId) {
+            const assignee = employees.find((e: any) => e.id === ccAssigneeId);
+            tasks.push({
+              id: `${project.id}-cc-create`,
+              clientDisplayName: displayName,
+              clientId: project.clientId || project.id,
+              projectId: project.id,
+              stage: 'Content Calendar',
+              deadline: deadlineStr,
+              type: 'content-calendar-create',
+              taskName: 'Create Content Calendar (Sheet)',
+              assigneeName: assignee ? `${assignee.firstName} ${assignee.lastName}` : 'Unassigned',
+              assigneeId: ccAssigneeId,
+              assignerName: null,
+              assignerId: null,
+              isFollowup: false
+            });
+          }
         }
-      }
-    });
+      });
+    }
 
     // Apply Scope Filter (My Work vs All Work)
     let filteredTasks = tasks;
